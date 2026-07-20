@@ -1,9 +1,9 @@
 import { toCodepoint } from "./utils.js";
 
-const DEFAULT_TAG = "animations-v2";
+const DEFAULT_TAG = "animations-v3";
 const DEFAULT_REPO = "ruslanobel/kanji-master-telegram-bot";
 
-/** Root CDN for a tag, e.g. .../@animations-v2  (no trailing slash, no /mp4) */
+/** Root CDN for a tag, e.g. .../@animations-v3  (no trailing slash, no /mp4) */
 export function animationsCdnRoot(): string {
   const fromEnv = process.env.ANIMATIONS_CDN_ROOT?.trim().replace(/\/$/, "");
   if (fromEnv) return fromEnv;

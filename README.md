@@ -16,18 +16,18 @@ npm run dev
 
 Поиск: `@username_бота вода` / `みず` / `水`.
 
-Анимации отдаются с **jsDelivr** (тег `animations-v2`): в списке поиска — статичный JPEG, после выбора — MP4.
+Анимации отдаются с **jsDelivr** (тег `animations-v3`): в списке поиска — статичный JPEG, после выбора — MP4.
 
 ## Анимации (Releases + jsDelivr)
 
 | Что | Где |
 |-----|-----|
 | Код бота | ветка `main` |
-| MP4 анимации | ветка `animations` + тег `animations-v2` |
+| MP4 анимации | ветка `animations` + тег `animations-v3` |
 | Превью (JPEG) | тот же тег, папка `preview/` |
 | Release | GitHub Release с тем же тегом + zip |
-| CDN MP4 | `…@animations-v2/mp4/{codepoint}.mp4` |
-| CDN preview | `…@animations-v2/preview/{codepoint}.jpg` |
+| CDN MP4 | `…@animations-v3/mp4/{codepoint}.mp4` |
+| CDN preview | `…@animations-v3/preview/{codepoint}.jpg` |
 
 Почему так: файлы в **versioned tag** (не в `main`) → jsDelivr кеширует по тегу, Telegram стабильно тянет URL, репо кода остаётся лёгким. Release нужен для версий и bulk zip.
 
@@ -36,7 +36,7 @@ npm run dev
 ```bash
 npm run build:gifs
 chmod +x scripts/publish-animations.sh
-./scripts/publish-animations.sh animations-v2
+./scripts/publish-animations.sh animations-v3
 ```
 
 Потом обнови `ANIMATIONS_CDN_BASE` в `.env` (или дефолт в `src/animations.ts`) на новый тег.

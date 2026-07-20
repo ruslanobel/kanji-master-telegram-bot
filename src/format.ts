@@ -29,6 +29,7 @@ export function formatDescription(entry: KanjiEntry): string {
   return meanings || "Кандзи";
 }
 
+/** HTML caption for inline Article / animation edit (Telegram caption limit). */
 export function formatCaption(entry: KanjiEntry): string {
   const meanings = entry.meaningsRu.length ? entry.meaningsRu : entry.meaningsEn;
   const meaningLine = meanings.length
@@ -42,13 +43,11 @@ export function formatCaption(entry: KanjiEntry): string {
     `Перевод: ${meaningLine}`,
   ];
 
-  if (entry.jlpt) {
-    lines.push(`JLPT: N${entry.jlpt}`);
-  }
+  if (entry.jlpt) lines.push(`JLPT: N${entry.jlpt}`);
 
   for (const ex of entry.examples.slice(0, 2)) {
-    const candidate = `${lines.join("\n")}\nПример: <b>${escapeHtml(ex.word)}</b>（${escapeHtml(ex.reading)}）— ${escapeHtml(ex.gloss)}`;
-    if (candidate.length <= CAPTION_LIMIT) {
+    const next = `${lines.join("\n")}\nПример: <b>${escapeHtml(ex.word)}</b>（${escapeHtml(ex.reading)}）— ${escapeHtml(ex.gloss)}`;
+    if (next.length <= CAPTION_LIMIT) {
       lines.push(
         `Пример: <b>${escapeHtml(ex.word)}</b>（${escapeHtml(ex.reading)}）— ${escapeHtml(ex.gloss)}`,
       );
@@ -57,7 +56,7 @@ export function formatCaption(entry: KanjiEntry): string {
 
   let caption = lines.join("\n");
   if (caption.length > CAPTION_LIMIT) {
-    caption = caption.slice(0, CAPTION_LIMIT - 1) + "…";
+    caption = `${caption.slice(0, CAPTION_LIMIT - 1)}…`;
   }
   return caption;
 }
@@ -71,7 +70,7 @@ export function formatHelp(botUsername: string): string {
     "• он/кун — <code>スイ</code> или <code>みず</code>",
     "• перевод — <code>вода</code>",
     "",
-    "Выбери вариант из списка — придёт карточка; кнопка «Написание» покажет анимацию.",
+    "В списке — статичное превью. После выбора нажми «Написание» для анимации.",
     "",
     "Данные: KANJIDIC / JMdict (русские значения из JMdict).",
     "Анимация: KanjiVG © Ulrich Apel (CC BY-SA 3.0), CDN jsDelivr.",

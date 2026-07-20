@@ -108,9 +108,10 @@ async function svgToPng(svg: string): Promise<Buffer> {
 }
 
 async function svgToJpeg(svg: string, size = 128): Promise<Buffer> {
+  // Telegram inline thumbnails reject progressive JPEGs → baseline only
   return sharp(Buffer.from(svg))
     .resize(size, size, { fit: "fill" })
-    .jpeg({ quality: 82, mozjpeg: true })
+    .jpeg({ quality: 85, progressive: false, mozjpeg: true })
     .toBuffer();
 }
 

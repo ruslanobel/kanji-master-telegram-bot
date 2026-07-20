@@ -11,7 +11,9 @@ async function main() {
   if (!path || !existsSync(path)) throw new Error("MP4 missing");
 
   const caption = formatCaption(entry);
-  if (caption.length > 1024) throw new Error("caption too long");
+  if (!caption.includes("水") || caption.length > 1024) {
+    throw new Error("caption malformed");
+  }
 
   console.log("mp4:", path);
   console.log("caption length:", caption.length);

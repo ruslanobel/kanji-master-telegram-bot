@@ -33,13 +33,11 @@ export function createBot(token: string): Bot {
   const bot = new Bot(token);
 
   bot.command("start", async (ctx) => {
-    const username = ctx.me.username ?? "bot";
-    await ctx.reply(formatHelp(username), { parse_mode: "HTML" });
+    await ctx.reply(formatHelp(ctx.me.username ?? "bot"), { parse_mode: "HTML" });
   });
 
   bot.command("help", async (ctx) => {
-    const username = ctx.me.username ?? "bot";
-    await ctx.reply(formatHelp(username), { parse_mode: "HTML" });
+    await ctx.reply(formatHelp(ctx.me.username ?? "bot"), { parse_mode: "HTML" });
   });
 
   bot.on("inline_query", async (ctx) => {
@@ -54,10 +52,7 @@ export function createBot(token: string): Bot {
           "Введите кандзи, он/кун чтение или русский перевод после @бота.",
         ),
       );
-      await ctx.answerInlineQuery(results, {
-        cache_time: 0,
-        is_personal: true,
-      });
+      await ctx.answerInlineQuery(results, { cache_time: 0, is_personal: true });
       return;
     }
 
@@ -73,8 +68,8 @@ export function createBot(token: string): Bot {
     }
 
     for (const entry of matches) {
-      // Strictly Article — same row UI as the hint (static thumb + title + description).
-      // Never mpeg4_gif / video: those force Telegram to fetch/play media in the list.
+      // Article only: JPEG thumb in list. No Rich Markdown with external MP4
+      // (that triggers EXTERNAL_MEDIA_NOT_SUPPORTED on answerInlineQuery).
       results.push(
         InlineQueryResultBuilder.article(entry.codepoint, formatTitle(entry), {
           description: formatDescription(entry),
@@ -86,11 +81,7 @@ export function createBot(token: string): Bot {
       );
     }
 
-    await ctx.answerInlineQuery(results, {
-      // Bust Telegram client cache of old video/mpeg4 results
-      cache_time: 0,
-      is_personal: true,
-    });
+    await ctx.answerInlineQuery(results, { cache_time: 0, is_personal: true });
   });
 
   bot.on("chosen_inline_result", async (ctx) => {
