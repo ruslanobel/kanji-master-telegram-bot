@@ -10,3 +10,4 @@ assets/mp4/
 assets/preview/
 *.log
 .DS_Store
+.env*

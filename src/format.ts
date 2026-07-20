@@ -46,9 +46,10 @@ function readingsTable(entry: KanjiEntry): string {
 
 export function formatTitle(entry: KanjiEntry): string {
   const reading = primaryReading(entry);
-  if (!reading) return "—";
+  if (!reading) return entry.literal;
   const romaji = toRomaji(reading);
-  return romaji ? `${reading} · ${romaji}` : reading;
+  const rest = romaji ? `${reading} · ${romaji}` : reading;
+  return `${entry.literal} · ${rest}`;
 }
 
 /** Russian glosses only — never fall back to English. */
