@@ -8,13 +8,12 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
 import sharp from "sharp";
+import { hasKanjiVg, kanjiVgDir } from "./kanjivg-path.js";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
-const KANJIVG_DIR = join(root, "assets", "kanjivg");
+const KANJIVG_DIR = kanjiVgDir();
 const KANJIVG_URL =
   "https://github.com/KanjiVG/kanjivg/releases/download/r20220427/kanjivg-20220427-all.zip";
 
@@ -54,6 +53,8 @@ function findSvgPath(literal: string): string | null {
   }
   return null;
 }
+
+export { hasKanjiVg };
 
 type Stroke = { d: string };
 

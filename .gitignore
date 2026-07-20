@@ -1,10 +1,9 @@
 node_modules/
 dist/
 .env
+.vercel
 data/raw/
-data/index.json
 data/gif-file-ids.json
-data/mp4-file-ids.json
 assets/kanjivg/
 assets/gifs/
 assets/mp4/

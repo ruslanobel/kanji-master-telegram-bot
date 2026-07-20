@@ -1,7 +1,10 @@
+import type { InputRichMessage, InputRichMessageMedia } from "grammy/types";
+import { animationMp4Url } from "./animations.js";
 import type { KanjiEntry } from "./types.js";
 import { escapeHtml, toRomaji } from "./utils.js";
 
 const CAPTION_LIMIT = 1024;
+const ANIM_MEDIA_ID = "anim";
 
 function joinList(items: string[]): string {
   return items.length ? items.join("、") : "—";
@@ -15,6 +18,32 @@ function primaryReading(entry: KanjiEntry): string | undefined {
   return display || undefined;
 }
 
+/** Escape free text for Telegram Rich Markdown (inline / table cells). */
+function escapeRichMd(text: string): string {
+  return text
+    .replaceAll("\\", "\\\\")
+    .replaceAll("|", "\\|")
+    .replaceAll("*", "\\*")
+    .replaceAll("_", "\\_")
+    .replaceAll("`", "\\`")
+    .replaceAll("[", "\\[")
+    .replaceAll("]", "\\]");
+}
+
+function readingsTable(entry: KanjiEntry): string {
+  const rows = Math.max(entry.on.length, entry.kun.length, 1);
+  const lines = [
+    "| Онъёми | Кунъёми |",
+    "| --- | --- |",
+  ];
+  for (let i = 0; i < rows; i++) {
+    const on = escapeRichMd(entry.on[i] ?? "");
+    const kun = escapeRichMd(entry.kun[i] ?? "");
+    lines.push(`| ${on} | ${kun} |`);
+  }
+  return lines.join("\n");
+}
+
 export function formatTitle(entry: KanjiEntry): string {
   const reading = primaryReading(entry);
   if (!reading) return "—";
@@ -22,16 +51,23 @@ export function formatTitle(entry: KanjiEntry): string {
   return romaji ? `${reading} · ${romaji}` : reading;
 }
 
-export function formatDescription(entry: KanjiEntry): string {
-  const meanings = (entry.meaningsRu.length ? entry.meaningsRu : entry.meaningsEn)
-    .slice(0, 3)
-    .join("; ");
-  return meanings || "Кандзи";
+/** Russian glosses only — never fall back to English. */
+function meaningsRu(entry: KanjiEntry): string[] {
+  return entry.meaningsRu;
 }
 
-/** HTML caption for inline Article / animation edit (Telegram caption limit). */
+export function formatDescription(
+  entry: KanjiEntry,
+  options: { animationUnavailable?: boolean } = {},
+): string {
+  const meanings = meaningsRu(entry).slice(0, 3).join("; ") || "Кандзи";
+  if (options.animationUnavailable) return `${meanings} · без анимации`;
+  return meanings;
+}
+
+/** HTML caption for legacy animation edits (Telegram caption limit). */
 export function formatCaption(entry: KanjiEntry): string {
-  const meanings = entry.meaningsRu.length ? entry.meaningsRu : entry.meaningsEn;
+  const meanings = meaningsRu(entry);
   const meaningLine = meanings.length
     ? meanings.slice(0, 6).map(escapeHtml).join("; ")
     : "—";
@@ -61,16 +97,89 @@ export function formatCaption(entry: KanjiEntry): string {
   return caption;
 }
 
+export type RichAnimationSource =
+  | { type: "none" }
+  /** HTTP URL in markdown — works in editMessage*, not in answerInlineQuery. */
+  | { type: "url" }
+  /**
+   * Preferred for inline answers: reference via tg://video?id=…
+   * `media` may be a Telegram file_id or (sometimes) an HTTPS URL.
+   */
+  | { type: "ref"; media: string };
+
+/**
+ * Rich Message matching the Notion card layout.
+ * Animation is placed after the JLPT line (better on mobile).
+ */
+export function formatRichMessage(
+  entry: KanjiEntry,
+  options: {
+    animation?: RichAnimationSource;
+    /** Show a note when stroke animation is not in our assets. */
+    animationUnavailable?: boolean;
+  } = {},
+): InputRichMessage {
+  const animation: RichAnimationSource = options.animation ?? { type: "url" };
+  const meanings = meaningsRu(entry);
+  const parts: string[] = [];
+  let media: InputRichMessageMedia[] | undefined;
+
+  parts.push(`# ${escapeRichMd(entry.literal)}`);
+
+  if (entry.jlpt) {
+    parts.push(`*JLPT: N${entry.jlpt}*`);
+  }
+
+  if (animation.type === "ref") {
+    parts.push("", `![](tg://video?id=${ANIM_MEDIA_ID})`, "");
+    media = [
+      {
+        id: ANIM_MEDIA_ID,
+        media: { type: "animation", media: animation.media },
+      },
+    ];
+  } else if (animation.type === "url") {
+    parts.push("", `![](${animationMp4Url(entry.literal)})`, "");
+  } else if (options.animationUnavailable) {
+    parts.push("", "*Анимация написания недоступна*", "");
+  }
+
+  parts.push("---", "", "## Чтения", "", readingsTable(entry), "", "---", "", "## Перевод", "");
+
+  if (meanings.length) {
+    for (const m of meanings.slice(0, 8)) {
+      parts.push(`- ${escapeRichMd(m)}`);
+    }
+  } else {
+    parts.push("- —");
+  }
+
+  parts.push("", "---", "", "## Примеры", "");
+
+  const examples = entry.examples.slice(0, 5);
+  if (examples.length) {
+    for (const ex of examples) {
+      parts.push(
+        `- **${escapeRichMd(ex.word)}**（${escapeRichMd(ex.reading)}）— ${escapeRichMd(ex.gloss)}`,
+      );
+    }
+  } else {
+    parts.push("- —");
+  }
+
+  return media ? { markdown: parts.join("\n"), media } : { markdown: parts.join("\n") };
+}
+
 export function formatHelp(botUsername: string): string {
   return [
     "<b>Поиск кандзи</b>",
     "",
     `В любом чате набери <code>@${escapeHtml(botUsername)}</code> и запрос:`,
     "• сам иероглиф — <code>水</code>",
-    "• он/кун — <code>スイ</code> или <code>みず</code>",
+    "• он/кун — <code>スイ</code>, <code>みず</code>, <code>mizu</code> или <code>мизу</code>",
     "• перевод — <code>вода</code>",
     "",
-    "В списке — статичное превью. После выбора нажми «Написание» для анимации.",
+    "В списке — статичное превью. После выбора — карточка с анимацией (если есть).",
     "",
     "Данные: KANJIDIC / JMdict (русские значения из JMdict).",
     "Анимация: KanjiVG © Ulrich Apel (CC BY-SA 3.0), CDN jsDelivr.",

@@ -1,14 +1,9 @@
-import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { animationsCdnRoot } from "./animations.js";
 import { createBot } from "./bot.js";
 import { loadEnv } from "./load-env.js";
+import { resolveDataPath } from "./paths.js";
 
 loadEnv();
-
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const INDEX_PATH = join(root, "data", "index.json");
 
 async function main(): Promise<void> {
   const token = process.env.BOT_TOKEN?.trim();
@@ -19,7 +14,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  if (!existsSync(INDEX_PATH)) {
+  try {
+    resolveDataPath("index.json");
+  } catch {
     console.error("data/index.json missing. Run: npm run build:data");
     process.exit(1);
   }
@@ -28,9 +25,20 @@ async function main(): Promise<void> {
 
   const bot = createBot(token);
   console.log("Starting bot (long polling)…");
+  console.log("If you deployed to Vercel, run: npm run delete-webhook");
   await bot.start({
+    drop_pending_updates: true,
+    allowed_updates: [
+      "message",
+      "callback_query",
+      "inline_query",
+      "chosen_inline_result",
+    ],
     onStart: (info) => {
       console.log(`Bot @${info.username} is running. Try: @${info.username} вода`);
+      console.log(
+        "Tip: BotFather → /setinlinefeedback → Enabled (100%) for auto-animation without a button.",
+      );
     },
   });
 }

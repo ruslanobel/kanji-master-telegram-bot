@@ -203,3 +203,177 @@ export function toRomaji(kana: string): string {
 
   return out;
 }
+
+/**
+ * Russian phonetic transcription (Polivanov + common Hepburn aliases) → Hepburn romaji.
+ * Examples: "мизу" → "mizu", "суси" → "sushi", "суши" → "sushi".
+ */
+export function russianReadingToRomaji(input: string): string {
+  let s = input
+    .trim()
+    .toLowerCase()
+    .replaceAll("ё", "е")
+    .replace(/[ъь']/g, "");
+  if (!s || !/^[а-я]+$/.test(s)) return "";
+
+  // Longest-first mora / digraph table.
+  const table: [string, string][] = [
+    ["кя", "kya"],
+    ["кю", "kyu"],
+    ["ке", "ke"],
+    ["кэ", "ke"],
+    ["кё", "kyo"],
+    ["гя", "gya"],
+    ["гю", "gyu"],
+    ["ге", "ge"],
+    ["гэ", "ge"],
+    ["гё", "gyo"],
+    ["ша", "sha"],
+    ["шу", "shu"],
+    ["шо", "sho"],
+    ["ща", "sha"],
+    ["щу", "shu"],
+    ["що", "sho"],
+    ["ча", "cha"],
+    ["чу", "chu"],
+    ["чо", "cho"],
+    ["джа", "ja"],
+    ["джу", "ju"],
+    ["джо", "jo"],
+    ["дзя", "ja"],
+    ["дзю", "ju"],
+    ["дзе", "ze"],
+    ["дзё", "jo"],
+    ["ня", "nya"],
+    ["ню", "nyu"],
+    ["не", "ne"],
+    ["нэ", "ne"],
+    ["нё", "nyo"],
+    ["хя", "hya"],
+    ["хю", "hyu"],
+    ["хе", "he"],
+    ["хэ", "he"],
+    ["хё", "hyo"],
+    ["мя", "mya"],
+    ["мю", "myu"],
+    ["ме", "me"],
+    ["мэ", "me"],
+    ["мё", "myo"],
+    ["ря", "rya"],
+    ["рю", "ryu"],
+    ["ре", "re"],
+    ["рэ", "re"],
+    ["рё", "ryo"],
+    ["бя", "bya"],
+    ["бю", "byu"],
+    ["бе", "be"],
+    ["бэ", "be"],
+    ["бё", "byo"],
+    ["пя", "pya"],
+    ["пю", "pyu"],
+    ["пе", "pe"],
+    ["пэ", "pe"],
+    ["пё", "pyo"],
+    ["ка", "ka"],
+    ["ки", "ki"],
+    ["ку", "ku"],
+    ["ко", "ko"],
+    ["га", "ga"],
+    ["ги", "gi"],
+    ["гу", "gu"],
+    ["го", "go"],
+    ["са", "sa"],
+    ["си", "shi"],
+    ["ши", "shi"],
+    ["су", "su"],
+    ["се", "se"],
+    ["сэ", "se"],
+    ["со", "so"],
+    ["за", "za"],
+    ["зи", "ji"],
+    ["джи", "ji"],
+    ["зу", "zu"],
+    ["зе", "ze"],
+    ["зэ", "ze"],
+    ["зо", "zo"],
+    ["та", "ta"],
+    ["ти", "chi"],
+    ["чи", "chi"],
+    ["цу", "tsu"],
+    ["тсу", "tsu"],
+    ["те", "te"],
+    ["тэ", "te"],
+    ["то", "to"],
+    ["да", "da"],
+    ["ди", "ji"],
+    ["ду", "zu"],
+    ["де", "de"],
+    ["дэ", "de"],
+    ["до", "do"],
+    ["на", "na"],
+    ["ни", "ni"],
+    ["ну", "nu"],
+    ["но", "no"],
+    ["ха", "ha"],
+    ["хи", "hi"],
+    ["фу", "fu"],
+    ["ху", "fu"],
+    ["хо", "ho"],
+    ["ба", "ba"],
+    ["би", "bi"],
+    ["бу", "bu"],
+    ["бо", "bo"],
+    ["па", "pa"],
+    ["пи", "pi"],
+    ["пу", "pu"],
+    ["по", "po"],
+    ["ма", "ma"],
+    ["ми", "mi"],
+    ["му", "mu"],
+    ["мо", "mo"],
+    ["я", "ya"],
+    ["ю", "yu"],
+    ["е", "e"],
+    ["э", "e"],
+    ["ра", "ra"],
+    ["ри", "ri"],
+    ["ру", "ru"],
+    ["ро", "ro"],
+    ["ва", "wa"],
+    ["ви", "wi"],
+    ["ву", "vu"],
+    ["ве", "we"],
+    ["вэ", "we"],
+    ["во", "vo"],
+    ["а", "a"],
+    ["и", "i"],
+    ["у", "u"],
+    ["о", "o"],
+    ["й", "i"],
+    ["н", "n"],
+  ];
+
+  // Sort by Cyrillic key length descending once.
+  table.sort((a, b) => b[0].length - a[0].length);
+
+  let out = "";
+  let i = 0;
+  while (i < s.length) {
+    let matched = false;
+    for (const [cyr, lat] of table) {
+      if (s.startsWith(cyr, i)) {
+        // ん before vowel → n'
+        if (lat === "n" && /[аиуэояюе]/.test(s[i + 1] ?? "")) {
+          out += "n'";
+        } else {
+          out += lat;
+        }
+        i += cyr.length;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) return ""; // not a clean phonetic spelling
+  }
+  return out.replaceAll("'", "");
+}

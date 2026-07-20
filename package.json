@@ -10,6 +10,8 @@
     "build:gifs": "tsx scripts/generate-gifs.ts",
     "build:previews": "tsx scripts/generate-previews.ts",
     "seed:gifs": "tsx scripts/seed-file-ids.ts",
+    "set-webhook": "tsx scripts/set-webhook.ts",
+    "delete-webhook": "tsx scripts/delete-webhook.ts",
     "smoke": "tsx scripts/smoke-search.ts",
     "typecheck": "tsc --noEmit"
   },
