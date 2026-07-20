@@ -15,6 +15,15 @@ export function loadIndex(): SearchIndex {
   return cached;
 }
 
+export function getKanjiByLiteral(literal: string): KanjiEntry | undefined {
+  return loadIndex().entries.find((e) => e.literal === literal);
+}
+
+export function getKanjiByCodepoint(hex: string): KanjiEntry | undefined {
+  const normalized = hex.toLowerCase().padStart(5, "0");
+  return loadIndex().entries.find((e) => e.codepoint === normalized);
+}
+
 function scoreEntry(entry: KanjiEntry, q: string, readingQ: string, meaningQ: string): number {
   if (!q) return 0;
 

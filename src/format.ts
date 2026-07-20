@@ -64,7 +64,7 @@ export function formatHelp(botUsername: string): string {
     "• он/кун — <code>スイ</code> или <code>みず</code>",
     "• перевод — <code>вода</code>",
     "",
-    "Выбери вариант из списка — бот отправит анимацию написания и карточку.",
+    "Выбери вариант из списка — придёт карточка; кнопка «Написание» покажет анимацию.",
     "",
     "Данные: KANJIDIC / JMdict (русские значения из JMdict).",
     "Анимация: KanjiVG © Ulrich Apel (CC BY-SA 3.0), CDN jsDelivr.",
