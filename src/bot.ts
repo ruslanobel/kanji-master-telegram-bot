@@ -7,7 +7,6 @@ import type { KanjiEntry } from "./types.js";
 const INLINE_LIMIT = 10;
 
 function animKeyboard(entry: KanjiEntry): InlineKeyboard {
-  // callback_data max 64 bytes — codepoint hex is short
   return new InlineKeyboard().text("▶️ Написание", `anim:${entry.codepoint}`);
 }
 
@@ -55,7 +54,10 @@ export function createBot(token: string): Bot {
           "Введите кандзи, он/кун чтение или русский перевод после @бота.",
         ),
       );
-      await ctx.answerInlineQuery(results, { cache_time: 5, is_personal: false });
+      await ctx.answerInlineQuery(results, {
+        cache_time: 0,
+        is_personal: true,
+      });
       return;
     }
 
@@ -66,36 +68,31 @@ export function createBot(token: string): Bot {
           description: q,
         }).text(`По запросу «${q}» ничего не найдено.`),
       );
-      await ctx.answerInlineQuery(results, { cache_time: 10 });
+      await ctx.answerInlineQuery(results, { cache_time: 0, is_personal: true });
       return;
     }
 
     for (const entry of matches) {
-      const title = formatTitle(entry);
-      const description = formatDescription(entry);
-      const thumb = animationPreviewUrl(entry.literal);
-      const caption = formatCaption(entry);
-
-      // Article = same UI as the hint (thumb left, title+description right).
-      // No MP4 in the suggestion list — Telegram won't preload animations.
+      // Strictly Article — same row UI as the hint (static thumb + title + description).
+      // Never mpeg4_gif / video: those force Telegram to fetch/play media in the list.
       results.push(
-        InlineQueryResultBuilder.article(entry.codepoint, title, {
-          description,
-          thumbnail_url: thumb,
+        InlineQueryResultBuilder.article(entry.codepoint, formatTitle(entry), {
+          description: formatDescription(entry),
+          thumbnail_url: animationPreviewUrl(entry.literal),
           thumbnail_width: 128,
           thumbnail_height: 128,
           reply_markup: animKeyboard(entry),
-        }).text(caption, { parse_mode: "HTML" }),
+        }).text(formatCaption(entry), { parse_mode: "HTML" }),
       );
     }
 
     await ctx.answerInlineQuery(results, {
-      cache_time: 30,
-      is_personal: false,
+      // Bust Telegram client cache of old video/mpeg4 results
+      cache_time: 0,
+      is_personal: true,
     });
   });
 
-  // One-tap animation if BotFather → Inline Feedback is enabled
   bot.on("chosen_inline_result", async (ctx) => {
     const inlineMessageId = ctx.chosenInlineResult.inline_message_id;
     if (!inlineMessageId) return;
