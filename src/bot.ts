@@ -6,6 +6,7 @@ import {
 } from "grammy";
 import { animationPreviewUrl } from "./animations.js";
 import {
+  formatCaption,
   formatDescription,
   formatHelp,
   formatRichMessage,
@@ -161,33 +162,72 @@ async function sendKanjiCard(
 ): Promise<void> {
   const fileId = getCachedAnimationFileId(entry.literal);
   const unavailable = !fileId && !canAnimate(entry.literal);
-  await api.sendRichMessage(
-    chatId,
-    formatRichMessage(entry, {
-      animation: fileId
-        ? { type: "ref", media: fileId }
-        : { type: "none" },
-      animationUnavailable: unavailable,
-    }),
-  );
+  const rich = formatRichMessage(entry, {
+    animation: fileId
+      ? { type: "ref", media: fileId }
+      : { type: "none" },
+    animationUnavailable: unavailable,
+  });
+
+  try {
+    await api.sendRichMessage(chatId, rich);
+    return;
+  } catch (err) {
+    console.error("sendRichMessage failed, using fallback:", err);
+  }
+
+  // Fallback for clients / API edge cases where Rich Messages fail.
+  if (fileId) {
+    await api.sendAnimation(chatId, fileId, {
+      caption: formatCaption(entry),
+      parse_mode: "HTML",
+    });
+    return;
+  }
+  await api.sendMessage(chatId, formatCaption(entry), { parse_mode: "HTML" });
 }
 
-function helpKeyboard(botUsername: string): InlineKeyboard {
+function helpKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .switchInlineCurrent("🔍 Искать здесь", "")
     .row()
-    .switchInline("📤 В другой чат / Избранное", "");
+    .switchInline("📌 В Избранное / другой чат", "");
 }
 
 export function createBot(token: string): Bot {
   const bot = new Bot(token);
   const seedChatId = Number(process.env.UPLOAD_CHAT_ID) || undefined;
+  let metaReady = false;
+
+  bot.use(async (_ctx, next) => {
+    if (!metaReady) {
+      metaReady = true;
+      try {
+        await bot.api.setMyCommands([
+          { command: "start", description: "Справка и кнопки поиска" },
+          { command: "help", description: "Как пользоваться" },
+        ]);
+        await bot.api.setMyShortDescription(
+          "Кандзи с анимацией. В любом чате: @kanjimasterbot вода",
+        );
+        await bot.api.setMyDescription(
+          "Поиск кандзи по иероглифу, чтениям (мизу / mizu) и русскому переводу.\n\n" +
+            "• В личке с ботом — отправь текст запроса\n" +
+            "• В Избранном и других чатах — @kanjimasterbot запрос\n" +
+            "• Кнопка «В Избранное» подставит @бот автоматически",
+        );
+      } catch (err) {
+        console.warn("setMy* meta failed:", err);
+      }
+    }
+    await next();
+  });
 
   bot.command("start", async (ctx) => {
     const username = ctx.me.username ?? "bot";
     await ctx.reply(formatHelp(username), {
       parse_mode: "HTML",
-      reply_markup: helpKeyboard(username),
+      reply_markup: helpKeyboard(),
     });
   });
 
@@ -195,35 +235,48 @@ export function createBot(token: string): Bot {
     const username = ctx.me.username ?? "bot";
     await ctx.reply(formatHelp(username), {
       parse_mode: "HTML",
-      reply_markup: helpKeyboard(username),
+      reply_markup: helpKeyboard(),
     });
   });
 
-  // Private chat: type a query without @bot (Saved Messages still need @bot).
+  // Private chat: send a query without @bot.
   bot.on("message:text", async (ctx) => {
     if (ctx.chat.type !== "private") return;
     const text = ctx.message.text.trim();
     if (!text || text.startsWith("/")) return;
 
-    const matches = searchKanji(text, DM_LIMIT);
-    if (!matches.length) {
-      await ctx.reply(`По запросу «${text}» ничего не найдено.`);
-      return;
-    }
+    try {
+      const matches = searchKanji(text, DM_LIMIT);
+      if (!matches.length) {
+        await ctx.reply(`По запросу «${text}» ничего не найдено.`);
+        return;
+      }
 
-    const uploadChatId = seedChatId ?? ctx.from.id;
-    if (!isServerless()) {
-      await warmFileIds(bot.api, matches, uploadChatId);
-    }
+      const uploadChatId = seedChatId ?? ctx.from.id;
+      if (!isServerless()) {
+        await warmFileIds(bot.api, matches, uploadChatId);
+      }
 
-    await sendKanjiCard(bot.api, ctx.chat.id, matches[0]!);
+      await sendKanjiCard(bot.api, ctx.chat.id, matches[0]!);
 
-    if (matches.length > 1) {
-      const username = ctx.me.username ?? "bot";
-      const lines = matches.slice(1).map((e) => `• ${formatTitle(e)}`);
-      await ctx.reply(
-        `Ещё варианты:\n${lines.join("\n")}\n\nВ любом чате (включая Избранное): @${username} ${text}`,
-      );
+      if (matches.length > 1) {
+        const username = ctx.me.username ?? "bot";
+        const lines = matches.slice(1).map((e) => `• ${formatTitle(e)}`);
+        await ctx.reply(
+          `Ещё варианты:\n${lines.join("\n")}\n\nВ другом чате нажми кнопку ниже или введи @${username} ${text}`,
+          { reply_markup: helpKeyboard() },
+        );
+      }
+    } catch (err) {
+      console.error("DM search failed:", err);
+      try {
+        await ctx.reply(
+          "Не удалось обработать запрос. Попробуй ещё раз или нажми «Искать здесь».",
+          { reply_markup: helpKeyboard() },
+        );
+      } catch {
+        // ignore
+      }
     }
   });
 

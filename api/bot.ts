@@ -15,7 +15,6 @@ const secret = process.env.WEBHOOK_SECRET?.trim();
  * @see https://grammy.dev/hosting/vercel
  */
 export default webhookCallback(bot, "https", {
-  onTimeout: "return",
   timeoutMilliseconds: 55_000,
   secretToken: secret || undefined,
 });
