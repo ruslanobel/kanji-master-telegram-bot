@@ -20,6 +20,7 @@ import {
 import { isServerless } from "./runtime.js";
 import { getKanjiByCodepoint, searchKanji } from "./search.js";
 import type { KanjiEntry } from "./types.js";
+import { escapeHtml } from "./utils.js";
 
 const INLINE_LIMIT = 10;
 const DM_LIMIT = 5;
@@ -205,6 +206,7 @@ export function createBot(token: string): Bot {
       try {
         await bot.api.setMyCommands([
           { command: "start", description: "Справка и кнопки поиска" },
+          { command: "search", description: "Вставить @бот и искать" },
           { command: "help", description: "Как пользоваться" },
         ]);
         await bot.api.setMyShortDescription(
@@ -237,6 +239,21 @@ export function createBot(token: string): Bot {
       parse_mode: "HTML",
       reply_markup: helpKeyboard(),
     });
+  });
+
+  // Opens inline mode in the current chat (@bot is inserted into the input).
+  bot.command("search", async (ctx) => {
+    const username = ctx.me.username ?? "bot";
+    await ctx.reply(
+      `Нажми кнопку — в поле ввода появится <code>@${escapeHtml(username)}</code>`,
+      {
+        parse_mode: "HTML",
+        reply_markup: new InlineKeyboard().switchInlineCurrent(
+          "🔍 Искать",
+          "",
+        ),
+      },
+    );
   });
 
   // Private chat: send a query without @bot.

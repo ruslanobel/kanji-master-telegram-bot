@@ -179,6 +179,7 @@ export function formatHelp(botUsername: string): string {
     "Напиши запрос и <b>отправь</b> сообщение (не только введи в поле):",
     "• <code>вода</code> · <code>мизу</code> · <code>mizu</code> · <code>水</code>",
     "Или нажми «Искать здесь» — откроется inline-поиск.",
+    "Команда <code>/search</code> — то же через кнопку с подстановкой @бот.",
     "",
     `<b>В Избранном и других чатах</b>`,
     `1) Нажми «В Избранное / другой чат» — Telegram сам подставит <code>@${escapeHtml(botUsername)}</code>`,
