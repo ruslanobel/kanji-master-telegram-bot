@@ -1,5 +1,5 @@
 import type { KanjiEntry } from "./types.js";
-import { escapeHtml } from "./utils.js";
+import { escapeHtml, toRomaji } from "./utils.js";
 
 const CAPTION_LIMIT = 1024;
 
@@ -7,12 +7,19 @@ function joinList(items: string[]): string {
   return items.length ? items.join("、") : "—";
 }
 
+/** Prefer kun, fall back to on. Display keeps kana type; dots stripped. */
+function primaryReading(entry: KanjiEntry): string | undefined {
+  const raw = entry.kun[0] ?? entry.on[0];
+  if (!raw) return undefined;
+  const display = raw.replace(/[.\u30fb\s]/g, "");
+  return display || undefined;
+}
+
 export function formatTitle(entry: KanjiEntry): string {
-  const meaning =
-    entry.meaningsRu[0] ?? entry.meaningsEn[0] ?? "без перевода";
-  const on = entry.on[0] ?? "—";
-  const kun = entry.kun[0] ?? "—";
-  return `${entry.literal} · ${on} / ${kun} · ${meaning}`;
+  const reading = primaryReading(entry);
+  if (!reading) return "—";
+  const romaji = toRomaji(reading);
+  return romaji ? `${reading} · ${romaji}` : reading;
 }
 
 export function formatDescription(entry: KanjiEntry): string {
