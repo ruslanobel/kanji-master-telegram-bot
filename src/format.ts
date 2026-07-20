@@ -178,7 +178,7 @@ export function formatHelp(botUsername: string): string {
     "<b>В личке с ботом</b>",
     "• Кнопка <b>Поиск кандзи</b> — вставит <code>@" +
       escapeHtml(botUsername) +
-      "</code> в поле ввода",
+      "</code> в поле ввода (без Mini App)",
     "• Или просто отправь запрос: <code>вода</code> · <code>мизу</code> · <code>mizu</code> · <code>水</code>",
     "",
     `<b>В Избранном и других чатах</b>`,

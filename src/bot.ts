@@ -221,6 +221,11 @@ async function replySearchResults(
   }
 }
 
+/**
+ * Official way to insert @bot into the input — no Mini App.
+ * @see https://core.telegram.org/bots/api#inlinekeyboardbutton
+ *     switch_inline_query_current_chat
+ */
 function helpKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .switchInlineCurrent(SEARCH_BUTTON, "")
@@ -238,16 +243,23 @@ export function createBot(token: string): Bot {
   const seedChatId = Number(process.env.UPLOAD_CHAT_ID) || undefined;
   let metaReady = false;
 
-  // Register slash-menu commands immediately (not only on first update).
   void bot.api.setMyCommands([...BOT_COMMANDS]).catch((err) => {
     console.warn("setMyCommands failed:", err);
   });
+
+  // Restore command menu (≡); clear any previous MenuButtonWebApp.
+  void bot.api
+    .setChatMenuButton({ menu_button: { type: "commands" } })
+    .catch((err) => {
+      console.warn("setChatMenuButton failed:", err);
+    });
 
   bot.use(async (_ctx, next) => {
     if (!metaReady) {
       metaReady = true;
       try {
         await bot.api.setMyCommands([...BOT_COMMANDS]);
+        await bot.api.setChatMenuButton({ menu_button: { type: "commands" } });
         await bot.api.setMyShortDescription(
           "Кандзи с анимацией. В любом чате: @kanjimasterbot вода",
         );
@@ -266,14 +278,18 @@ export function createBot(token: string): Bot {
 
   bot.command("start", async (ctx) => {
     const username = ctx.me.username ?? "bot";
+    // Drop leftover reply-keyboard Web App button from earlier versions.
     await ctx.reply(formatHelp(username), {
       parse_mode: "HTML",
-      // Remove old reply-keyboard Web App button if present.
       reply_markup: { remove_keyboard: true },
     });
-    await ctx.reply("Нажми кнопку — в поле ввода появится @" + username, {
-      reply_markup: helpKeyboard(),
-    });
+    await ctx.reply(
+      `Нажми кнопку — в поле ввода появится <code>@${username}</code>`,
+      {
+        parse_mode: "HTML",
+        reply_markup: helpKeyboard(),
+      },
+    );
   });
 
   bot.command("help", async (ctx) => {
