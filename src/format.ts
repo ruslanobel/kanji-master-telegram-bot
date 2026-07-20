@@ -176,16 +176,13 @@ export function formatHelp(botUsername: string): string {
     "<b>Поиск кандзи</b>",
     "",
     "<b>В личке с ботом</b>",
-    "Напиши запрос и <b>отправь</b> сообщение (не только введи в поле):",
-    "• <code>вода</code> · <code>мизу</code> · <code>mizu</code> · <code>水</code>",
-    "Или из меню: <code>/search</code> → допиши запрос → отправь (<code>/search вода</code>).",
-    "Кнопка «Искать здесь» — inline-поиск.",
+    "• Кнопка <b>Поиск кандзи</b> — вставит <code>@" +
+      escapeHtml(botUsername) +
+      "</code> в поле ввода",
+    "• Или просто отправь запрос: <code>вода</code> · <code>мизу</code> · <code>mizu</code> · <code>水</code>",
     "",
     `<b>В Избранном и других чатах</b>`,
-    `1) Нажми «В Избранное / другой чат» — Telegram сам подставит <code>@${escapeHtml(botUsername)}</code>`,
-    `2) Либо вручную: <code>@${escapeHtml(botUsername)} вода</code> (нужен пробел после ника)`,
-    "",
-    "Подсказка @ появляется после /start и недавнего использования бота.",
+    `• Кнопка «В Избранное / другой чат» или <code>@${escapeHtml(botUsername)} вода</code>`,
     "",
     "Данные: KANJIDIC / JMdict. Анимация: KanjiVG (CC BY-SA 3.0).",
   ].join("\n");

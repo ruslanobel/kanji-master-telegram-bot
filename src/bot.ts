@@ -27,6 +27,7 @@ const DM_LIMIT = 5;
 const WARM_BUDGET_MS = 2800;
 const WARM_CONCURRENCY = 3;
 const WARM_MAX = 5;
+const SEARCH_BUTTON = "🔍 Поиск кандзи";
 
 /** Stale inline queries after restart / fast typing — safe to ignore. */
 function isStaleInlineQueryError(err: unknown): boolean {
@@ -222,14 +223,13 @@ async function replySearchResults(
 
 function helpKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
-    .switchInlineCurrent("🔍 Искать здесь", "")
+    .switchInlineCurrent(SEARCH_BUTTON, "")
     .row()
     .switchInline("📌 В Избранное / другой чат", "");
 }
 
 const BOT_COMMANDS = [
-  { command: "start", description: "Справка и кнопки поиска" },
-  { command: "search", description: "Поиск — допиши запрос после команды" },
+  { command: "start", description: "Справка и кнопка поиска" },
   { command: "help", description: "Как пользоваться" },
 ] as const;
 
@@ -253,9 +253,9 @@ export function createBot(token: string): Bot {
         );
         await bot.api.setMyDescription(
           "Поиск кандзи по иероглифу, чтениям (мизу / mizu) и русскому переводу.\n\n" +
-            "• В личке — текст или /search вода\n" +
+            "• Кнопка «Поиск кандзи» вставляет @бот в поле ввода\n" +
             "• В Избранном и других чатах — @kanjimasterbot запрос\n" +
-            "• Кнопка «В Избранное» подставит @бот автоматически",
+            "• Или просто напиши запрос в личке с ботом",
         );
       } catch (err) {
         console.warn("setMy* meta failed:", err);
@@ -268,6 +268,10 @@ export function createBot(token: string): Bot {
     const username = ctx.me.username ?? "bot";
     await ctx.reply(formatHelp(username), {
       parse_mode: "HTML",
+      // Remove old reply-keyboard Web App button if present.
+      reply_markup: { remove_keyboard: true },
+    });
+    await ctx.reply("Нажми кнопку — в поле ввода появится @" + username, {
       reply_markup: helpKeyboard(),
     });
   });
@@ -278,28 +282,6 @@ export function createBot(token: string): Bot {
       parse_mode: "HTML",
       reply_markup: helpKeyboard(),
     });
-  });
-
-  // Menu: pick /search → type query in the same input → send "/search вода".
-  bot.command("search", async (ctx) => {
-    const query = (ctx.match ?? "").trim();
-    if (!query) {
-      await ctx.reply(
-        "Допиши запрос в том же поле и отправь:\n" +
-          "<code>/search вода</code>\n" +
-          "<code>/search mizu</code>\n" +
-          "<code>/search 水</code>",
-        { parse_mode: "HTML" },
-      );
-      return;
-    }
-
-    try {
-      await replySearchResults(bot, ctx, query, seedChatId);
-    } catch (err) {
-      console.error("/search failed:", err);
-      await ctx.reply("Не удалось обработать запрос. Попробуй ещё раз.");
-    }
   });
 
   // Private chat: send a query without @bot.
@@ -314,7 +296,7 @@ export function createBot(token: string): Bot {
       console.error("DM search failed:", err);
       try {
         await ctx.reply(
-          "Не удалось обработать запрос. Попробуй ещё раз или нажми «Искать здесь».",
+          "Не удалось обработать запрос. Попробуй кнопку «Поиск кандзи».",
           { reply_markup: helpKeyboard() },
         );
       } catch {
