@@ -1,6 +1,7 @@
 import {
   Bot,
   GrammyError,
+  InlineKeyboard,
   InlineQueryResultBuilder,
 } from "grammy";
 import { animationPreviewUrl } from "./animations.js";
@@ -20,6 +21,7 @@ import { getKanjiByCodepoint, searchKanji } from "./search.js";
 import type { KanjiEntry } from "./types.js";
 
 const INLINE_LIMIT = 10;
+const DM_LIMIT = 5;
 const WARM_BUDGET_MS = 2800;
 const WARM_CONCURRENCY = 3;
 const WARM_MAX = 5;
@@ -152,16 +154,77 @@ function buildResults(matches: KanjiEntry[]) {
   });
 }
 
+async function sendKanjiCard(
+  api: Bot["api"],
+  chatId: number,
+  entry: KanjiEntry,
+): Promise<void> {
+  const fileId = getCachedAnimationFileId(entry.literal);
+  const unavailable = !fileId && !canAnimate(entry.literal);
+  await api.sendRichMessage(
+    chatId,
+    formatRichMessage(entry, {
+      animation: fileId
+        ? { type: "ref", media: fileId }
+        : { type: "none" },
+      animationUnavailable: unavailable,
+    }),
+  );
+}
+
+function helpKeyboard(botUsername: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .switchInlineCurrent("🔍 Искать здесь", "")
+    .row()
+    .switchInline("📤 В другой чат / Избранное", "");
+}
+
 export function createBot(token: string): Bot {
   const bot = new Bot(token);
   const seedChatId = Number(process.env.UPLOAD_CHAT_ID) || undefined;
 
   bot.command("start", async (ctx) => {
-    await ctx.reply(formatHelp(ctx.me.username ?? "bot"), { parse_mode: "HTML" });
+    const username = ctx.me.username ?? "bot";
+    await ctx.reply(formatHelp(username), {
+      parse_mode: "HTML",
+      reply_markup: helpKeyboard(username),
+    });
   });
 
   bot.command("help", async (ctx) => {
-    await ctx.reply(formatHelp(ctx.me.username ?? "bot"), { parse_mode: "HTML" });
+    const username = ctx.me.username ?? "bot";
+    await ctx.reply(formatHelp(username), {
+      parse_mode: "HTML",
+      reply_markup: helpKeyboard(username),
+    });
+  });
+
+  // Private chat: type a query without @bot (Saved Messages still need @bot).
+  bot.on("message:text", async (ctx) => {
+    if (ctx.chat.type !== "private") return;
+    const text = ctx.message.text.trim();
+    if (!text || text.startsWith("/")) return;
+
+    const matches = searchKanji(text, DM_LIMIT);
+    if (!matches.length) {
+      await ctx.reply(`По запросу «${text}» ничего не найдено.`);
+      return;
+    }
+
+    const uploadChatId = seedChatId ?? ctx.from.id;
+    if (!isServerless()) {
+      await warmFileIds(bot.api, matches, uploadChatId);
+    }
+
+    await sendKanjiCard(bot.api, ctx.chat.id, matches[0]!);
+
+    if (matches.length > 1) {
+      const username = ctx.me.username ?? "bot";
+      const lines = matches.slice(1).map((e) => `• ${formatTitle(e)}`);
+      await ctx.reply(
+        `Ещё варианты:\n${lines.join("\n")}\n\nВ любом чате (включая Избранное): @${username} ${text}`,
+      );
+    }
   });
 
   bot.on("inline_query", async (ctx) => {
