@@ -1,7 +1,9 @@
 import { Bot, InlineQueryResultBuilder } from "grammy";
-import { animationMp4Url } from "./animations.js";
+import { animationMp4Url, animationPreviewUrl } from "./animations.js";
 import { formatCaption, formatHelp, formatTitle } from "./format.js";
 import { searchKanji } from "./search.js";
+
+const INLINE_LIMIT = 10;
 
 export function createBot(token: string): Bot {
   const bot = new Bot(token);
@@ -32,7 +34,7 @@ export function createBot(token: string): Bot {
       return;
     }
 
-    const matches = searchKanji(q, 20);
+    const matches = searchKanji(q, INLINE_LIMIT);
     if (!matches.length) {
       results.push(
         InlineQueryResultBuilder.article("empty", "Ничего не найдено", {
@@ -47,14 +49,17 @@ export function createBot(token: string): Bot {
       const caption = formatCaption(entry);
       const title = formatTitle(entry);
       const mp4 = animationMp4Url(entry.literal);
+      // Static JPEG in the suggestion list — never the MP4 (avoids Telegram crash).
+      const thumb = animationPreviewUrl(entry.literal);
 
       results.push(
-        InlineQueryResultBuilder.mpeg4gif(entry.codepoint, mp4, mp4, {
+        InlineQueryResultBuilder.mpeg4gif(entry.codepoint, mp4, thumb, {
           title,
           caption,
           parse_mode: "HTML",
           mpeg4_width: 200,
           mpeg4_height: 200,
+          thumbnail_mime_type: "image/jpeg",
         }),
       );
     }

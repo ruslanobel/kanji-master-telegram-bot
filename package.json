@@ -8,6 +8,7 @@
     "start": "tsx src/index.ts",
     "build:data": "tsx scripts/build-index.ts",
     "build:gifs": "tsx scripts/generate-gifs.ts",
+    "build:previews": "tsx scripts/generate-previews.ts",
     "seed:gifs": "tsx scripts/seed-file-ids.ts",
     "smoke": "tsx scripts/smoke-search.ts",
     "typecheck": "tsc --noEmit"

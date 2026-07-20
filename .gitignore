@@ -8,5 +8,6 @@ data/mp4-file-ids.json
 assets/kanjivg/
 assets/gifs/
 assets/mp4/
+assets/preview/
 *.log
 .DS_Store

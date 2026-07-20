@@ -107,6 +107,27 @@ async function svgToPng(svg: string): Promise<Buffer> {
   return sharp(Buffer.from(svg)).resize(SIZE, SIZE, { fit: "fill" }).png().toBuffer();
 }
 
+async function svgToJpeg(svg: string, size = 128): Promise<Buffer> {
+  return sharp(Buffer.from(svg))
+    .resize(size, size, { fit: "fill" })
+    .jpeg({ quality: 82, mozjpeg: true })
+    .toBuffer();
+}
+
+/** Static JPEG preview (final glyph) for inline result thumbnails. */
+export async function generateKanjiPreview(literal: string, outPath: string): Promise<void> {
+  await ensureKanjiVg();
+  const svgPath = findSvgPath(literal);
+  if (!svgPath) throw new Error(`No KanjiVG SVG for ${literal}`);
+
+  const strokes = extractStrokes(readFileSync(svgPath, "utf8"));
+  if (strokes.length === 0) throw new Error(`No strokes found for ${literal}`);
+
+  const jpeg = await svgToJpeg(buildFrameSvg(strokes, strokes.length, 0));
+  mkdirSync(dirname(outPath), { recursive: true });
+  writeFileSync(outPath, jpeg);
+}
+
 function requireFfmpeg(): string {
   if (!ffmpegPath) throw new Error("ffmpeg-static binary not found");
   return ffmpegPath;

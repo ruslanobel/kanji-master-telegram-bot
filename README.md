@@ -16,16 +16,18 @@ npm run dev
 
 Поиск: `@username_бота вода` / `みず` / `水`.
 
-Анимации отдаются с **jsDelivr** (тег GitHub Release `animations-v1`), seed в Telegram не нужен.
+Анимации отдаются с **jsDelivr** (тег `animations-v2`): в списке поиска — статичный JPEG, после выбора — MP4.
 
 ## Анимации (Releases + jsDelivr)
 
 | Что | Где |
 |-----|-----|
 | Код бота | ветка `main` |
-| MP4 анимации | ветка `animations` + тег `animations-v1` |
-| Release | GitHub Release с тем же тегом + zip для скачивания |
-| CDN | `https://cdn.jsdelivr.net/gh/ruslanobel/kanji-master-telegram-bot@animations-v1/mp4/{codepoint}.mp4` |
+| MP4 анимации | ветка `animations` + тег `animations-v2` |
+| Превью (JPEG) | тот же тег, папка `preview/` |
+| Release | GitHub Release с тем же тегом + zip |
+| CDN MP4 | `…@animations-v2/mp4/{codepoint}.mp4` |
+| CDN preview | `…@animations-v2/preview/{codepoint}.jpg` |
 
 Почему так: файлы в **versioned tag** (не в `main`) → jsDelivr кеширует по тегу, Telegram стабильно тянет URL, репо кода остаётся лёгким. Release нужен для версий и bulk zip.
 

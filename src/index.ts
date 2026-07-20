@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { animationsCdnRoot } from "./animations.js";
 import { createBot } from "./bot.js";
-import { animationsBaseUrl } from "./animations.js";
 import { loadEnv } from "./load-env.js";
 
 loadEnv();
@@ -24,7 +24,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  console.log(`Animations CDN: ${animationsBaseUrl()}`);
+  console.log(`Animations CDN: ${animationsCdnRoot()}`);
 
   const bot = createBot(token);
   console.log("Starting bot (long polling)…");
