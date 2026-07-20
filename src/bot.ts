@@ -1,5 +1,6 @@
 import {
   Bot,
+  type Context,
   GrammyError,
   InlineKeyboard,
   InlineQueryResultBuilder,
@@ -20,7 +21,6 @@ import {
 import { isServerless } from "./runtime.js";
 import { getKanjiByCodepoint, searchKanji } from "./search.js";
 import type { KanjiEntry } from "./types.js";
-import { escapeHtml } from "./utils.js";
 
 const INLINE_LIMIT = 10;
 const DM_LIMIT = 5;
@@ -188,6 +188,38 @@ async function sendKanjiCard(
   await api.sendMessage(chatId, formatCaption(entry), { parse_mode: "HTML" });
 }
 
+/** Reply with top matches for a text query (DM / /search). */
+async function replySearchResults(
+  bot: Bot,
+  ctx: Context,
+  query: string,
+  seedChatId: number | undefined,
+): Promise<void> {
+  if (!ctx.chat) return;
+
+  const matches = searchKanji(query, DM_LIMIT);
+  if (!matches.length) {
+    await ctx.reply(`По запросу «${query}» ничего не найдено.`);
+    return;
+  }
+
+  const uploadChatId = seedChatId ?? ctx.from?.id;
+  if (!isServerless() && uploadChatId) {
+    await warmFileIds(bot.api, matches, uploadChatId);
+  }
+
+  await sendKanjiCard(bot.api, ctx.chat.id, matches[0]!);
+
+  if (matches.length > 1) {
+    const username = ctx.me.username ?? "bot";
+    const lines = matches.slice(1).map((e) => `• ${formatTitle(e)}`);
+    await ctx.reply(
+      `Ещё варианты:\n${lines.join("\n")}\n\nВ другом чате: @${username} ${query}`,
+      { reply_markup: helpKeyboard() },
+    );
+  }
+}
+
 function helpKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .switchInlineCurrent("🔍 Искать здесь", "")
@@ -195,26 +227,33 @@ function helpKeyboard(): InlineKeyboard {
     .switchInline("📌 В Избранное / другой чат", "");
 }
 
+const BOT_COMMANDS = [
+  { command: "start", description: "Справка и кнопки поиска" },
+  { command: "search", description: "Поиск — допиши запрос после команды" },
+  { command: "help", description: "Как пользоваться" },
+] as const;
+
 export function createBot(token: string): Bot {
   const bot = new Bot(token);
   const seedChatId = Number(process.env.UPLOAD_CHAT_ID) || undefined;
   let metaReady = false;
 
+  // Register slash-menu commands immediately (not only on first update).
+  void bot.api.setMyCommands([...BOT_COMMANDS]).catch((err) => {
+    console.warn("setMyCommands failed:", err);
+  });
+
   bot.use(async (_ctx, next) => {
     if (!metaReady) {
       metaReady = true;
       try {
-        await bot.api.setMyCommands([
-          { command: "start", description: "Справка и кнопки поиска" },
-          { command: "search", description: "Вставить @бот и искать" },
-          { command: "help", description: "Как пользоваться" },
-        ]);
+        await bot.api.setMyCommands([...BOT_COMMANDS]);
         await bot.api.setMyShortDescription(
           "Кандзи с анимацией. В любом чате: @kanjimasterbot вода",
         );
         await bot.api.setMyDescription(
           "Поиск кандзи по иероглифу, чтениям (мизу / mizu) и русскому переводу.\n\n" +
-            "• В личке с ботом — отправь текст запроса\n" +
+            "• В личке — текст или /search вода\n" +
             "• В Избранном и других чатах — @kanjimasterbot запрос\n" +
             "• Кнопка «В Избранное» подставит @бот автоматически",
         );
@@ -241,19 +280,26 @@ export function createBot(token: string): Bot {
     });
   });
 
-  // Opens inline mode in the current chat (@bot is inserted into the input).
+  // Menu: pick /search → type query in the same input → send "/search вода".
   bot.command("search", async (ctx) => {
-    const username = ctx.me.username ?? "bot";
-    await ctx.reply(
-      `Нажми кнопку — в поле ввода появится <code>@${escapeHtml(username)}</code>`,
-      {
-        parse_mode: "HTML",
-        reply_markup: new InlineKeyboard().switchInlineCurrent(
-          "🔍 Искать",
-          "",
-        ),
-      },
-    );
+    const query = (ctx.match ?? "").trim();
+    if (!query) {
+      await ctx.reply(
+        "Допиши запрос в том же поле и отправь:\n" +
+          "<code>/search вода</code>\n" +
+          "<code>/search mizu</code>\n" +
+          "<code>/search 水</code>",
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
+    try {
+      await replySearchResults(bot, ctx, query, seedChatId);
+    } catch (err) {
+      console.error("/search failed:", err);
+      await ctx.reply("Не удалось обработать запрос. Попробуй ещё раз.");
+    }
   });
 
   // Private chat: send a query without @bot.
@@ -263,27 +309,7 @@ export function createBot(token: string): Bot {
     if (!text || text.startsWith("/")) return;
 
     try {
-      const matches = searchKanji(text, DM_LIMIT);
-      if (!matches.length) {
-        await ctx.reply(`По запросу «${text}» ничего не найдено.`);
-        return;
-      }
-
-      const uploadChatId = seedChatId ?? ctx.from.id;
-      if (!isServerless()) {
-        await warmFileIds(bot.api, matches, uploadChatId);
-      }
-
-      await sendKanjiCard(bot.api, ctx.chat.id, matches[0]!);
-
-      if (matches.length > 1) {
-        const username = ctx.me.username ?? "bot";
-        const lines = matches.slice(1).map((e) => `• ${formatTitle(e)}`);
-        await ctx.reply(
-          `Ещё варианты:\n${lines.join("\n")}\n\nВ другом чате нажми кнопку ниже или введи @${username} ${text}`,
-          { reply_markup: helpKeyboard() },
-        );
-      }
+      await replySearchResults(bot, ctx, text, seedChatId);
     } catch (err) {
       console.error("DM search failed:", err);
       try {
