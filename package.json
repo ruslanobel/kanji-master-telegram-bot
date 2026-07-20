@@ -1,0 +1,29 @@
+{
+  "name": "kanji-writing",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "start": "tsx src/index.ts",
+    "build:data": "tsx scripts/build-index.ts",
+    "build:gifs": "tsx scripts/generate-gifs.ts",
+    "seed:gifs": "tsx scripts/seed-file-ids.ts",
+    "smoke": "tsx scripts/smoke-search.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "ffmpeg-static": "^5.3.0",
+    "grammy": "^1.35.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
