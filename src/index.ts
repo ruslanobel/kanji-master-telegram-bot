@@ -33,6 +33,7 @@ async function main(): Promise<void> {
       "callback_query",
       "inline_query",
       "chosen_inline_result",
+      "my_chat_member",
     ],
     onStart: (info) => {
       console.log(`Bot @${info.username} is running. Try: @${info.username} вода`);

@@ -8,6 +8,7 @@ const ALLOWED_UPDATES = [
   "callback_query",
   "inline_query",
   "chosen_inline_result",
+  "my_chat_member",
 ] as const;
 
 async function main(): Promise<void> {

@@ -171,19 +171,10 @@ export function formatRichMessage(
   return media ? { markdown: parts.join("\n"), media } : { markdown: parts.join("\n") };
 }
 
-export function formatHelp(botUsername: string): string {
+export function formatWelcome(): string {
   return [
-    "<b>Поиск кандзи</b>",
+    "Привет! Я помогу тебе найти кандзи, узнать их чтения и перевод! Также покажу, как он пишется!",
     "",
-    "<b>В личке с ботом</b>",
-    "• Кнопка <b>Поиск кандзи</b> — вставит <code>@" +
-      escapeHtml(botUsername) +
-      "</code> в поле ввода (без Mini App)",
-    "• Или просто отправь запрос: <code>вода</code> · <code>мизу</code> · <code>mizu</code> · <code>水</code>",
-    "",
-    `<b>В Избранном и других чатах</b>`,
-    `• Кнопка «В Избранное / другой чат» или <code>@${escapeHtml(botUsername)} вода</code>`,
-    "",
-    "Данные: KANJIDIC / JMdict. Анимация: KanjiVG (CC BY-SA 3.0).",
+    "Нажми на кнопку ниже, чтобы начать поиск",
   ].join("\n");
 }

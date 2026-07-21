@@ -9,9 +9,9 @@ import { animationPreviewUrl } from "./animations.js";
 import {
   formatCaption,
   formatDescription,
-  formatHelp,
   formatRichMessage,
   formatTitle,
+  formatWelcome,
 } from "./format.js";
 import {
   ensureCachedAnimationFileId,
@@ -122,7 +122,7 @@ async function upgradeToFullCard(
         ? { type: "ref", media: fileId }
         : { type: "none" },
     }),
-    { reply_markup: { inline_keyboard: [] } },
+    { reply_markup: searchKeyboard() },
   );
 }
 
@@ -135,7 +135,7 @@ function buildResults(matches: KanjiEntry[]) {
       return InlineQueryResultBuilder.article(
         entry.codepoint,
         formatTitle(entry),
-        articleBase(entry),
+        { ...articleBase(entry), reply_markup: searchKeyboard() },
       ).rich(
         formatRichMessage(entry, {
           animation: { type: "ref", media: fileId },
@@ -147,7 +147,10 @@ function buildResults(matches: KanjiEntry[]) {
     return InlineQueryResultBuilder.article(
       entry.codepoint,
       formatTitle(entry),
-      articleBase(entry, { animationUnavailable: unavailable }),
+      {
+        ...articleBase(entry, { animationUnavailable: unavailable }),
+        reply_markup: searchKeyboard(),
+      },
     ).rich(
       formatRichMessage(entry, {
         animation: { type: "none" },
@@ -170,9 +173,10 @@ async function sendKanjiCard(
       : { type: "none" },
     animationUnavailable: unavailable,
   });
+  const reply_markup = searchKeyboard();
 
   try {
-    await api.sendRichMessage(chatId, rich);
+    await api.sendRichMessage(chatId, rich, { reply_markup });
     return;
   } catch (err) {
     console.error("sendRichMessage failed, using fallback:", err);
@@ -183,10 +187,14 @@ async function sendKanjiCard(
     await api.sendAnimation(chatId, fileId, {
       caption: formatCaption(entry),
       parse_mode: "HTML",
+      reply_markup,
     });
     return;
   }
-  await api.sendMessage(chatId, formatCaption(entry), { parse_mode: "HTML" });
+  await api.sendMessage(chatId, formatCaption(entry), {
+    parse_mode: "HTML",
+    reply_markup,
+  });
 }
 
 /** Reply with top matches for a text query (DM / /search). */
@@ -216,27 +224,32 @@ async function replySearchResults(
     const lines = matches.slice(1).map((e) => `• ${formatTitle(e)}`);
     await ctx.reply(
       `Ещё варианты:\n${lines.join("\n")}\n\nВ другом чате: @${username} ${query}`,
-      { reply_markup: helpKeyboard() },
+      { reply_markup: searchKeyboard() },
     );
   }
 }
 
-/**
- * Official way to insert @bot into the input — no Mini App.
- * @see https://core.telegram.org/bots/api#inlinekeyboardbutton
- *     switch_inline_query_current_chat
- */
-function helpKeyboard(): InlineKeyboard {
+function searchKeyboard(): InlineKeyboard {
+  return new InlineKeyboard().switchInlineCurrent(SEARCH_BUTTON, "");
+}
+
+function welcomeKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .switchInlineCurrent(SEARCH_BUTTON, "")
     .row()
-    .switchInline("📌 В Избранное / другой чат", "");
+    .switchInline("Попробовать в другом чате", "");
 }
 
 const BOT_COMMANDS = [
   { command: "start", description: "Справка и кнопка поиска" },
   { command: "help", description: "Как пользоваться" },
 ] as const;
+
+async function sendWelcome(ctx: Context): Promise<void> {
+  await ctx.reply(formatWelcome(), {
+    reply_markup: welcomeKeyboard(),
+  });
+}
 
 export function createBot(token: string): Bot {
   const bot = new Bot(token);
@@ -260,15 +273,8 @@ export function createBot(token: string): Bot {
       try {
         await bot.api.setMyCommands([...BOT_COMMANDS]);
         await bot.api.setChatMenuButton({ menu_button: { type: "commands" } });
-        await bot.api.setMyShortDescription(
-          "Кандзи с анимацией. В любом чате: @kanjimasterbot вода",
-        );
-        await bot.api.setMyDescription(
-          "Поиск кандзи по иероглифу, чтениям (мизу / mizu) и русскому переводу.\n\n" +
-            "• Кнопка «Поиск кандзи» вставляет @бот в поле ввода\n" +
-            "• В Избранном и других чатах — @kanjimasterbot запрос\n" +
-            "• Или просто напиши запрос в личке с ботом",
-        );
+        // Do not call setMyDescription / setMyShortDescription —
+        // those are managed manually in BotFather / bot settings.
       } catch (err) {
         console.warn("setMy* meta failed:", err);
       }
@@ -277,27 +283,25 @@ export function createBot(token: string): Bot {
   });
 
   bot.command("start", async (ctx) => {
-    const username = ctx.me.username ?? "bot";
-    // Drop leftover reply-keyboard Web App button from earlier versions.
-    await ctx.reply(formatHelp(username), {
-      parse_mode: "HTML",
-      reply_markup: { remove_keyboard: true },
-    });
-    await ctx.reply(
-      `Нажми кнопку — в поле ввода появится <code>@${username}</code>`,
-      {
-        parse_mode: "HTML",
-        reply_markup: helpKeyboard(),
-      },
-    );
+    await sendWelcome(ctx);
   });
 
   bot.command("help", async (ctx) => {
-    const username = ctx.me.username ?? "bot";
-    await ctx.reply(formatHelp(username), {
-      parse_mode: "HTML",
-      reply_markup: helpKeyboard(),
-    });
+    await sendWelcome(ctx);
+  });
+
+  // Welcome when the bot is added to a group / supergroup.
+  bot.on("my_chat_member", async (ctx) => {
+    const { old_chat_member: prev, new_chat_member: next } = ctx.myChatMember;
+    const wasOut = prev.status === "left" || prev.status === "kicked";
+    const isIn =
+      next.status === "member" || next.status === "administrator";
+    if (!wasOut || !isIn) return;
+    try {
+      await sendWelcome(ctx);
+    } catch (err) {
+      console.error("welcome on join failed:", err);
+    }
   });
 
   // Private chat: send a query without @bot.
@@ -313,7 +317,7 @@ export function createBot(token: string): Bot {
       try {
         await ctx.reply(
           "Не удалось обработать запрос. Попробуй кнопку «Поиск кандзи».",
-          { reply_markup: helpKeyboard() },
+          { reply_markup: searchKeyboard() },
         );
       } catch {
         // ignore
